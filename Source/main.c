@@ -1,46 +1,101 @@
 #include "tinyOS.h"
 
-typedef struct
-{
-	unsigned long * stackPtr;
-}BlockType_t;
-
-BlockType_t * blockPtr;
-unsigned long stackBuffer[20];
-BlockType_t block;
-
-#define NVIC_INT_CTRL    0xE000ED04
-#define NVIC_PENDSVSET   0x10000000
-#define NVIC_SYSPRI2     0xE000ED22
-#define NVIC_PENDSV_PRI  0x000000FF
-
-void triggerPendSVC(void)
-{
-	*(volatile unsigned long *)0xE000ED22 = 0x000000FF;    // 设置PendSV异常优先级为最低
-	*(volatile unsigned long *)0xE000ED04 = 0x10000000;    // 触发PendSV异常
-}
-
 void delay(unsigned int i)
 {
 	while(i--);
 }
 
-int flag;
+// 定义两个任务句柄
+tTask tTask1;   
+tTask tTask2;
+
+// 定义两个任务的栈空间
+tTaskStack task1Env[20];
+tTaskStack task2Env[20];
+
+tTask* currentTask;
+tTask* nextTask;
+tTask* taskTable[2];
+
+// task: 任务句柄
+// entry: 任务函数
+// param: 任务函数参数
+// stack: 任务运行的栈空间
+void tTaskInit(tTask* task, void(*entry)(void*), void* param, tTaskStack* stack)    
+{	
+	*(--stack) = (unsigned long)(1 << 24);
+	*(--stack) = (unsigned long)entry;
+	*(--stack) = (unsigned long)0x14;
+	*(--stack) = (unsigned long)0x12;
+	*(--stack) = (unsigned long)0x3;
+	*(--stack) = (unsigned long)0x2;
+	*(--stack) = (unsigned long)0x1;
+	*(--stack) = (unsigned long)param;
+	*(--stack) = (unsigned long)0x11;
+	*(--stack) = (unsigned long)0x10;
+	*(--stack) = (unsigned long)0x9;
+	*(--stack) = (unsigned long)0x8;
+	*(--stack) = (unsigned long)0x7;
+	*(--stack) = (unsigned long)0x6;
+	*(--stack) = (unsigned long)0x5;
+	*(--stack) = (unsigned long)0x4;
+
+	task->stack = stack;
+}
+
+void tTaskSched()
+{
+	if(currentTask == taskTable[0])
+	{
+		nextTask = taskTable[1];
+	}
+	else
+	{
+		nextTask = taskTable[0];
+	}
+
+	tTaskSwitch();
+}
+
+int task1Flag;
+void task1Entry(void* param)
+{
+	for(;;)
+	{
+		task1Flag = 0;
+		delay(100);
+		task1Flag = 1;
+		delay(100);
+		
+		tTaskSched();
+	}
+}
+
+int task2Flag;
+void task2Entry(void* param)
+{
+	for(;;)
+	{
+		task2Flag = 0;
+		delay(100);
+		task2Flag = 1;
+		delay(100);
+		
+		tTaskSched();
+	}
+}
 
 int main(void)
 {
-	block.stackPtr = &stackBuffer[20];
-	blockPtr = &block;
+	tTaskInit(&tTask1, task1Entry, (void*)0x11111111, &task1Env[20]);
+	tTaskInit(&tTask2, task2Entry, (void*)0x22222222, &task2Env[20]);
 
-	for(;;)
-	{
-		flag = 0;
-		delay(100);
-		flag = 1;
-		delay(100);
+	taskTable[0] = &tTask1;
+	taskTable[1] = &tTask2;
 
-		triggerPendSVC();
-	}
-	
+	nextTask = taskTable[0];
+
+	tTaskRunFirst();    // 运行第一个任务
+
 	return 0;
 }
