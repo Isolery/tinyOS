@@ -388,6 +388,11 @@
               <FileType>1</FileType>
               <FilePath>.\Source\main.c</FilePath>
             </File>
+            <File>
+              <FileName>swithc.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>.\Source\swithc.c</FilePath>
+            </File>
           </Files>
         </Group>
         <Group>

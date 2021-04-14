@@ -80,3 +80,4 @@
 # !my_customized_scatter_file.sct
 
 !/Jlink-Fix/*
+.vscode/settings.json
