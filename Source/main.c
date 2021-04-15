@@ -4,6 +4,18 @@
 void tSetSysTickPeriod(uint32_t ms);
 void tTaskDelay(uint32_t delay);
 
+uint32_t tTaskEnterCritical(void)
+{
+	uint32_t primask = __get_PRIMASK();
+	__disable_irq();
+	return primask;
+}
+
+void tTaskExitCritical(uint32_t status)
+{
+	__set_PRIMASK(status);
+}
+
 void delay(unsigned int i)
 {
 	while(i--);
@@ -52,6 +64,7 @@ void tTaskInit(tTask* task, void(*entry)(void*), void* param, tTaskStack* stack)
 
 void tTaskSched()
 {
+	uint32_t status = tTaskEnterCritical();
 	if(currentTask == IDLETask)
 	{
 		if(taskTable[0]->delayTicks == 0)
@@ -64,6 +77,7 @@ void tTaskSched()
 		}
 		else
 		{
+			tTaskExitCritical(status);
 			return;
 		}
 	}
@@ -81,6 +95,7 @@ void tTaskSched()
 			}
 			else
 			{
+				tTaskExitCritical(status);
 				return;
 			}
 		}
@@ -96,11 +111,13 @@ void tTaskSched()
 			}
 			else
 			{
+				tTaskExitCritical(status);
 				return;
 			}
 		}
 	}
 
+	tTaskExitCritical(status);
 	tTaskSwitch();
 }
 
@@ -123,7 +140,9 @@ void task2Entry(void* param)
 {
 	for(;;)
 	{
+		uint32_t status = tTaskEnterCritical();
 		task2Flag = 0;
+		tTaskExitCritical(status);
 		tTaskDelay(100);
 		task2Flag = 1;
 		tTaskDelay(100);
@@ -154,7 +173,12 @@ void tTaskSysTickHandler()
 
 void tTaskDelay(uint32_t delay)
 {
+	uint32_t status = tTaskEnterCritical();
+	
 	currentTask->delayTicks = delay / 10;
+
+	tTaskExitCritical(status);
+	
 	tTaskSched();
 }
 
