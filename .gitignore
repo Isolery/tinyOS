@@ -8,6 +8,7 @@
 *.uvgui
 *.uvgui.*
 *.uvguix.*
+*.scvd
 
 # Listing files
 *.cod
@@ -79,3 +80,4 @@
 # !my_customized_scatter_file.sct
 
 !/Jlink-Fix/*
+.vscode/settings.json
