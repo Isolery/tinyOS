@@ -4,6 +4,18 @@
 void tSetSysTickPeriod(uint32_t ms);
 void tTaskDelay(uint32_t delay);
 
+uint32_t tTaskEnterCritical(void)
+{
+	uint32_t primask = __get_PRIMASK();
+	__disable_irq();
+	return primask;
+}
+
+void tTaskExitCritical(uint32_t status)
+{
+	__set_PRIMASK(status);
+}
+
 void delay(unsigned int i)
 {
 	while(i--);
@@ -23,6 +35,8 @@ tTask* currentTask;
 tTask* nextTask;
 tTask* IDLETask;
 tTask* taskTable[2];
+
+uint32_t tickCount;
 
 // task: 任务句柄
 // entry: 任务函数
@@ -52,6 +66,8 @@ void tTaskInit(tTask* task, void(*entry)(void*), void* param, tTaskStack* stack)
 
 void tTaskSched()
 {
+	uint32_t status = tTaskEnterCritical();
+	
 	if(currentTask == IDLETask)
 	{
 		if(taskTable[0]->delayTicks == 0)
@@ -64,6 +80,7 @@ void tTaskSched()
 		}
 		else
 		{
+			tTaskExitCritical(status);
 			return;
 		}
 	}
@@ -81,6 +98,7 @@ void tTaskSched()
 			}
 			else
 			{
+				tTaskExitCritical(status);
 				return;
 			}
 		}
@@ -96,11 +114,14 @@ void tTaskSched()
 			}
 			else
 			{
+				tTaskExitCritical(status);
 				return;
 			}
 		}
 	}
-
+	
+	tTaskExitCritical(status);
+	
 	tTaskSwitch();
 }
 
@@ -123,6 +144,14 @@ void task2Entry(void* param)
 {
 	for(;;)
 	{
+		uint32_t status = tTaskEnterCritical();
+		
+		uint32_t counter = tickCount;
+
+		tickCount = counter + 1;
+			
+		tTaskExitCritical(status);
+
 		task2Flag = 0;
 		tTaskDelay(100);
 		task2Flag = 1;
@@ -141,6 +170,8 @@ void taskIDLEEntry(void* param)
 void tTaskSysTickHandler()
 {
 	int i;
+	
+	uint32_t status = tTaskEnterCritical();
 	for(i = 0; i < 2; i++)
 	{
 		if(taskTable[i]->delayTicks > 0)
@@ -149,12 +180,20 @@ void tTaskSysTickHandler()
 		}
 	}
 
+	tickCount++;
+	tTaskExitCritical(status);
+	
 	tTaskSched();
 }
 
 void tTaskDelay(uint32_t delay)
 {
+	uint32_t status = tTaskEnterCritical();
+	
 	currentTask->delayTicks = delay / 10;
+	
+	tTaskExitCritical(status);
+	
 	tTaskSched();
 }
 
