@@ -7,6 +7,9 @@ typedef uint32_t tTaskStack;
 
 typedef struct  {
     tTaskStack * stack;
+
+    // 任务延时计数器
+    uint32_t delayTicks;
 }tTask;
 
 typedef struct {

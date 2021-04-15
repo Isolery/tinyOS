@@ -2,6 +2,7 @@
 #include "ARMCM3.h"
 
 void tSetSysTickPeriod(uint32_t ms);
+void tTaskDelay(uint32_t delay);
 
 void delay(unsigned int i)
 {
@@ -11,13 +12,16 @@ void delay(unsigned int i)
 // 定义任务句柄
 tTask tTask1;   
 tTask tTask2;
+tTask tTaskIDLE;    // 空闲任务
 
 // 定义任务的栈空间
 tTaskStack task1Env[20];
 tTaskStack task2Env[20];
+tTaskStack taskIDLE[20];
 
 tTask* currentTask;
 tTask* nextTask;
+tTask* IDLETask;
 tTask* taskTable[2];
 
 // task: 任务句柄
@@ -48,13 +52,53 @@ void tTaskInit(tTask* task, void(*entry)(void*), void* param, tTaskStack* stack)
 
 void tTaskSched()
 {
-	if(currentTask == taskTable[0])
+	if(currentTask == IDLETask)
 	{
-		nextTask = taskTable[1];
+		if(taskTable[0]->delayTicks == 0)
+		{
+			nextTask = taskTable[0];
+		}
+		else if(taskTable[1]->delayTicks == 0)
+		{
+			nextTask = taskTable[1];
+		}
+		else
+		{
+			return;
+		}
 	}
 	else
 	{
-		nextTask = taskTable[0];
+		if(currentTask == taskTable[0])
+		{
+			if(taskTable[1]->delayTicks == 0)
+			{
+				nextTask = taskTable[1];
+			}
+			else if(currentTask->delayTicks != 0)
+			{
+				nextTask = IDLETask;
+			}
+			else
+			{
+				return;
+			}
+		}
+		else if(currentTask == taskTable[1])
+		{
+			if(taskTable[0]->delayTicks == 0)
+			{
+				nextTask = taskTable[0];
+			}
+			else if(currentTask->delayTicks != 0)
+			{
+				nextTask = IDLETask;
+			}
+			else
+			{
+				return;
+			}
+		}
 	}
 
 	tTaskSwitch();
@@ -68,9 +112,9 @@ void task1Entry(void* param)
 	for(;;)
 	{
 		task1Flag = 0;
-		delay(100);
+		tTaskDelay(100);
 		task1Flag = 1;
-		delay(100);
+		tTaskDelay(100);
 	}
 }
 
@@ -80,10 +124,38 @@ void task2Entry(void* param)
 	for(;;)
 	{
 		task2Flag = 0;
-		delay(100);
+		tTaskDelay(100);
 		task2Flag = 1;
-		delay(100);
+		tTaskDelay(100);
 	}
+}
+
+void taskIDLEEntry(void* param)
+{
+	for(;;)
+	{
+
+	}
+}
+
+void tTaskSysTickHandler()
+{
+	int i;
+	for(i = 0; i < 2; i++)
+	{
+		if(taskTable[i]->delayTicks > 0)
+		{
+			taskTable[i]->delayTicks--;
+		}
+	}
+
+	tTaskSched();
+}
+
+void tTaskDelay(uint32_t delay)
+{
+	currentTask->delayTicks = delay / 10;
+	tTaskSched();
 }
 
 void tSetSysTickPeriod(uint32_t ms)
@@ -98,18 +170,20 @@ void tSetSysTickPeriod(uint32_t ms)
 
 void SysTick_Handler()
 {
-	tTaskSched();
+	tTaskSysTickHandler();    // 当触发SysTick异常时进行任务切换
 }
 
 int main(void)
 {
 	tTaskInit(&tTask1, task1Entry, (void*)0x11111111, &task1Env[20]);
 	tTaskInit(&tTask2, task2Entry, (void*)0x22222222, &task2Env[20]);
+	tTaskInit(&tTaskIDLE, taskIDLEEntry, 0, &taskIDLE[20]);
 
 	taskTable[0] = &tTask1;
 	taskTable[1] = &tTask2;
 
 	nextTask = taskTable[0];
+	IDLETask = &tTaskIDLE;
 
 	tTaskRunFirst();    // 运行第一个任务
 
