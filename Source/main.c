@@ -27,9 +27,9 @@ tTask tTask2;
 tTask tTaskIDLE;    // 空闲任务
 
 // 定义任务的栈空间
-tTaskStack task1Env[20];
-tTaskStack task2Env[20];
-tTaskStack taskIDLE[20];
+tTaskStack task1Env[128];
+tTaskStack task2Env[128];
+tTaskStack taskIDLE[128];
 
 tTask* currentTask;
 tTask* nextTask;
@@ -213,9 +213,9 @@ void SysTick_Handler()
 
 int main(void)
 {
-	tTaskInit(&tTask1, task1Entry, (void*)0x11111111, &task1Env[20]);
-	tTaskInit(&tTask2, task2Entry, (void*)0x22222222, &task2Env[20]);
-	tTaskInit(&tTaskIDLE, taskIDLEEntry, 0, &taskIDLE[20]);
+	tTaskInit(&tTask1, task1Entry, (void*)0x11111111, &task1Env[128]);
+	tTaskInit(&tTask2, task2Entry, (void*)0x22222222, &task2Env[128]);
+	tTaskInit(&tTaskIDLE, taskIDLEEntry, 0, &taskIDLE[128]);
 
 	taskTable[0] = &tTask1;
 	taskTable[1] = &tTask2;
