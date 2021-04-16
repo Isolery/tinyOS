@@ -191,7 +191,6 @@ void tTaskDelay(uint32_t delay)
 	uint32_t status = tTaskEnterCritical();
 	
 	currentTask->delayTicks = delay / 10;
-	
 	tTaskExitCritical(status);
 	
 	tTaskSched();
